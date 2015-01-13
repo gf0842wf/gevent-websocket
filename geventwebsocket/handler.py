@@ -54,6 +54,10 @@ class WebSocketHandler(WSGIHandler):
             del self.server.clients[self.client_address]
             if not self.websocket.closed:
                 self.websocket.close()
+            self.environ.update({
+                'wsgi.websocket': None
+            })
+            self.websocket = None
 
     def run_application(self):
         if (hasattr(self.server, 'pre_start_hook')
@@ -101,12 +105,6 @@ class WebSocketHandler(WSGIHandler):
             self.logger.debug('Can only upgrade connection if using GET method.')
             return
 
-        if self.request_version != 'HTTP/1.1':
-            self.start_response('402 Bad Request', [])
-            self.logger.warning("Bad server protocol in headers")
-
-            return ['Bad protocol version']
-
         upgrade = self.environ.get('HTTP_UPGRADE', '').lower()
 
         if upgrade == 'websocket':
@@ -120,6 +118,12 @@ class WebSocketHandler(WSGIHandler):
         else:
             # This is not a websocket request, so we must not handle it
             return
+
+        if self.request_version != 'HTTP/1.1':
+            self.start_response('402 Bad Request', [])
+            self.logger.warning("Bad server protocol in headers")
+
+            return ['Bad protocol version']
 
         if self.environ.get('HTTP_SEC_WEBSOCKET_VERSION'):
             return self.upgrade_connection()
